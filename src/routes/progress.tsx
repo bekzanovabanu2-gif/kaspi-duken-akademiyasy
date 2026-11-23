@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Activity, BookOpen, CheckCircle2, Loader, Target } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { EmptyState, PageHeader, StatCard } from "@/components/academy/ui";
-import { courseProgress, useAcademy } from "@/lib/academy";
+import { courseProgress, useAcademy, visibleLessons } from "@/lib/academy";
 
 export const Route = createFileRoute("/progress")({
   head: () => ({ meta: [
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/progress")({
 function ProgressPage() {
   const s = useAcademy();
   const p = courseProgress(s);
-  const inProg = s.lessons.filter((l) => l.published && s.progress.lessons[l.id] === "in_progress").length;
+  const inProg = visibleLessons(s).filter((l) => s.progress.lessons[l.id] === "in_progress").length;
   const results = Object.values(s.progress.quizzes);
   const avg = results.length ? Math.round((results.reduce((a, r) => a + r.score / r.total, 0) / results.length) * 100) : 0;
   return (

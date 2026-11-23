@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { LessonView } from "@/components/academy/LessonView";
 import { EmptyState, StatusBadge } from "@/components/academy/ui";
-import { setLessonStatus, useAcademy } from "@/lib/academy";
+import { setLessonStatus, useAcademy, visibleLessons } from "@/lib/academy";
 
 export const Route = createFileRoute("/lessons/$lessonId")({
   head: () => ({ meta: [
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/lessons/$lessonId")({
 function LessonPage() {
   const { lessonId } = Route.useParams();
   const s = useAcademy();
-  const published = s.lessons.filter((l) => l.published);
+  const published = visibleLessons(s);
   const idx = published.findIndex((l) => l.id === lessonId);
   const lesson = published[idx];
   const status = s.progress.lessons[lessonId] ?? "not_started";

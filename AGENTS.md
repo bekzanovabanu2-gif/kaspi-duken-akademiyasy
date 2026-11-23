@@ -28,3 +28,7 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Academy editor
+- Keep content editing in academy components with pure validation and mutations in the editor library so browser storage stays atomic and rules remain testable.
+- Treat missing publication flags on legacy modules and materials as published; use shared visibility helpers to hide unpublished modules and their lessons consistently.

@@ -3,7 +3,7 @@ import { ArrowRight, BookOpen, Library, Megaphone, PlayCircle, ShieldAlert, Targ
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { EmptyState, SampleBadge } from "@/components/academy/ui";
-import { courseProgress, formatDate, useAcademy } from "@/lib/academy";
+import { courseProgress, formatDate, useAcademy, visibleLessons } from "@/lib/academy";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -27,7 +27,7 @@ function greeting() {
 function Dashboard() {
   const s = useAcademy();
   const p = courseProgress(s);
-  const published = s.lessons.filter((l) => l.published);
+  const published = visibleLessons(s);
   const next = published.find((l) => s.progress.lessons[l.id] === "in_progress") ?? published.find((l) => s.progress.lessons[l.id] !== "done");
   const anns = s.announcements.filter((a) => a.published);
   const quick = [

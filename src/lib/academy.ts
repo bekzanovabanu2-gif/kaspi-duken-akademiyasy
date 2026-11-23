@@ -3,14 +3,14 @@ import { useSyncExternalStore } from "react";
 export type LessonStatus = "not_started" | "in_progress" | "done";
 export type Accent = "burgundy" | "plum" | "rose" | "emerald";
 
-export interface Module { id: string; title: string; description: string; sample?: boolean }
+export interface Module { id: string; title: string; description: string; published?: boolean; sample?: boolean }
 export interface Resource { id: string; title: string; url: string }
 export interface Lesson {
   id: string; moduleId: string | null; title: string; description: string; category: string;
   duration: number; cover: string; videoUrl: string; content: string; resources: Resource[];
   published: boolean; sample?: boolean;
 }
-export interface Material { id: string; title: string; description: string; category: string; url: string; fileName?: string; fileData?: string; sample?: boolean }
+export interface Material { id: string; title: string; description: string; category: string; url: string; fileName?: string; fileData?: string; published?: boolean; sample?: boolean }
 export interface Question { id: string; text: string; options: string[]; correct: number; explanation: string }
 export interface Quiz { id: string; title: string; description: string; questions: Question[]; published: boolean }
 export interface Announcement { id: string; title: string; body: string; date: string; published: boolean; sample?: boolean }
@@ -67,7 +67,7 @@ export function setState(updater: (s: AcademyState) => AcademyState): boolean {
   return true;
 }
 
-export function resetState() { setState(() => createDefaultState()); }
+export function resetState() { return setState(() => createDefaultState()); }
 
 export function useAcademy(): AcademyState {
   return useSyncExternalStore(
@@ -97,8 +97,14 @@ export function move<T>(arr: T[], index: number, dir: -1 | 1): T[] {
   return copy;
 }
 
+export function visibleModules(s: AcademyState) { return s.modules.filter((m) => m.published !== false); }
+
+export function visibleLessons(s: AcademyState) {
+  return s.lessons.filter((l) => l.published && (l.moduleId === null || s.modules.some((m) => m.id === l.moduleId && m.published !== false)));
+}
+
 export function courseProgress(s: AcademyState) {
-  const published = s.lessons.filter((l) => l.published);
+  const published = visibleLessons(s);
   const done = published.filter((l) => s.progress.lessons[l.id] === "done").length;
   return { total: published.length, done, percent: published.length ? Math.round((done / published.length) * 100) : 0 };
 }

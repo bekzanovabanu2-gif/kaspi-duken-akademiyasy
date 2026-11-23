@@ -3,7 +3,7 @@ import { CheckCircle2, Circle, FolderKanban, Loader } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { EmptyState, PageHeader, SampleBadge } from "@/components/academy/ui";
-import { useAcademy } from "@/lib/academy";
+import { useAcademy, visibleModules, visibleLessons } from "@/lib/academy";
 
 export const Route = createFileRoute("/modules")({
   head: () => ({ meta: [
@@ -18,13 +18,13 @@ export const Route = createFileRoute("/modules")({
 
 function Modules() {
   const s = useAcademy();
-  if (!s.modules.length) return (<><PageHeader title="Модульдер" /><EmptyState icon={FolderKanban} title="Модуль жоқ" text="Сабақтарды топтау үшін модуль қосыңыз." action={<Button asChild><Link to="/admin">Модуль қосу</Link></Button>} /></>);
+  if (!visibleModules(s).length) return (<><PageHeader title="Модульдер" /><EmptyState icon={FolderKanban} title="Модуль жоқ" text="Сабақтарды топтау үшін модуль қосыңыз." action={<Button asChild><Link to="/admin">Модуль қосу</Link></Button>} /></>);
   return (
     <div>
       <PageHeader title="Модульдер" subtitle="Курс тақырыптар бойынша модульдерге бөлінген." />
       <div className="space-y-4">
-        {s.modules.map((m, i) => {
-          const lessons = s.lessons.filter((l) => l.published && l.moduleId === m.id);
+        {visibleModules(s).map((m, i) => {
+          const lessons = visibleLessons(s).filter((l) => l.moduleId === m.id);
           const done = lessons.filter((l) => s.progress.lessons[l.id] === "done").length;
           const pct = lessons.length ? Math.round((done / lessons.length) * 100) : 0;
           return (

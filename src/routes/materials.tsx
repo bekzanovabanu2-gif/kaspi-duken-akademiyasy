@@ -21,12 +21,13 @@ export const Route = createFileRoute("/materials")({
 function Materials() {
   const s = useAcademy();
   const [q, setQ] = useState(""); const [cat, setCat] = useState("all");
-  const cats = [...new Set(s.materials.map((m) => m.category).filter(Boolean))];
-  const list = s.materials.filter((m) => (cat === "all" || m.category === cat) && (m.title + m.description).toLowerCase().includes(q.toLowerCase()));
+  const published = s.materials.filter((m) => m.published !== false);
+  const cats = [...new Set(published.map((m) => m.category).filter(Boolean))];
+  const list = published.filter((m) => (cat === "all" || m.category === cat) && (m.title + m.description).toLowerCase().includes(q.toLowerCase()));
   return (
     <div>
       <PageHeader title="Материалдар" subtitle="Шаблондар, нұсқаулықтар және пайдалы сілтемелер." />
-      {s.materials.length === 0 ? <EmptyState icon={Library} title="Материал жоқ" text="Файлдар мен сілтемелерді «Контентті басқару» бөлімінде қосыңыз." action={<Button asChild><Link to="/admin">Материал қосу</Link></Button>} /> : (
+      {published.length === 0 ? <EmptyState icon={Library} title="Материал жоқ" text="Файлдар мен сілтемелерді «Контентті басқару» бөлімінде қосыңыз." action={<Button asChild><Link to="/admin">Материал қосу</Link></Button>} /> : (
         <>
           <div className="relative mb-4"><Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Материал іздеу..." className="h-11 rounded-xl bg-card pl-10" /></div>
           <div className="mb-6 flex gap-2 overflow-x-auto pb-1">

@@ -4,7 +4,7 @@ import { BookOpen, Clock, PlayCircle, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { EmptyState, PageHeader, SampleBadge, StatusBadge } from "@/components/academy/ui";
-import { useAcademy, type LessonStatus } from "@/lib/academy";
+import { useAcademy, visibleLessons, visibleModules, type LessonStatus } from "@/lib/academy";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/lessons/")({
@@ -25,7 +25,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
 function Lessons() {
   const s = useAcademy();
   const [q, setQ] = useState(""); const [mod, setMod] = useState("all"); const [cat, setCat] = useState("all"); const [st, setSt] = useState<"all" | LessonStatus>("all");
-  const published = s.lessons.filter((l) => l.published);
+  const published = visibleLessons(s);
   const cats = [...new Set(published.map((l) => l.category).filter(Boolean))];
   const list = useMemo(() => published.filter((l) => {
     const status = s.progress.lessons[l.id] ?? "not_started";
@@ -44,7 +44,7 @@ function Lessons() {
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Сабақ іздеу..." className="h-11 rounded-xl bg-card pl-10" /></div>
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
             <Chip active={mod === "all"} onClick={() => setMod("all")}>Барлық модуль</Chip>
-            {s.modules.map((m) => <Chip key={m.id} active={mod === m.id} onClick={() => setMod(m.id)}>{m.title}</Chip>)}
+            {visibleModules(s).map((m) => <Chip key={m.id} active={mod === m.id} onClick={() => setMod(m.id)}>{m.title}</Chip>)}
           </div>
           <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
             {(["all", "not_started", "in_progress", "done"] as const).map((v) => <Chip key={v} active={st === v} onClick={() => setSt(v)}>{{ all: "Барлығы", not_started: "Басталмады", in_progress: "Оқуда", done: "Аяқталды" }[v]}</Chip>)}

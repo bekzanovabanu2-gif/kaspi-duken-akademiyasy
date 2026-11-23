@@ -7,7 +7,9 @@ describe("academy rules", () => {
   });
   it("progress counts only published lessons", () => {
     const s = createDefaultState();
-    s.lessons.push({ ...s.lessons[0]!, id: "x", published: false });
+    const first = s.lessons[0];
+    if (!first) throw new Error("Missing sample lesson");
+    s.lessons.push({ ...first, id: "x", published: false });
     s.progress.lessons["sample-lesson"] = "done";
     expect(courseProgress(s)).toEqual({ total: 1, done: 1, percent: 100 });
   });

@@ -6,9 +6,9 @@ import { courseProgress, useAcademy, visibleLessons } from "@/lib/academy";
 
 export const Route = createFileRoute("/progress")({
   head: () => ({ meta: [
-    { title: "Менің нәтижем — Kaspi Academy — Banu" },
+    { title: "Менің нәтижем — Kaspi Дүкен Академиясы" },
     { name: "description", content: "Оқу прогресі, тест нәтижелері және соңғы әрекеттер." },
-    { property: "og:title", content: "Менің нәтижем — Kaspi Academy" },
+    { property: "og:title", content: "Менің нәтижем — Kaspi Академия" },
     { property: "og:description", content: "Оқу прогресі мен нәтижелер." },
     { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
   ] }),

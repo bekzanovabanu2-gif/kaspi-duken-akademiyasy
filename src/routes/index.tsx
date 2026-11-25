@@ -8,9 +8,9 @@ import { courseProgress, formatDate, useAcademy, visibleLessons } from "@/lib/ac
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Басты бет — Kaspi Academy — Banu" },
+      { title: "Басты бет — Kaspi Дүкен Академиясы" },
       { name: "description", content: "Kaspi Магазин курсы: прогресс, жалғастыру және хабарландырулар." },
-      { property: "og:title", content: "Kaspi Academy — Banu" },
+      { property: "og:title", content: "Kaspi Дүкен Академиясы" },
       { property: "og:description", content: "Kaspi Магазин ашу және басқаруды үйрететін тәуелсіз оқу порталы." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -44,7 +44,7 @@ function Dashboard() {
         <div className="absolute -right-4 top-10 size-32 rounded-full border border-gold/25" />
         <p className="text-sm font-medium text-gold">{greeting()} 👋</p>
         <h1 className="mt-2 max-w-xl text-3xl font-semibold leading-tight md:text-5xl">{s.settings.courseTitle}</h1>
-        <p className="mt-3 max-w-lg text-sm opacity-85 md:text-base">Kaspi Магазин ашуды және басқаруды қадам-қадаммен үйреніңіз. Жетекші: {s.settings.instructor}</p>
+        <p className="mt-3 max-w-lg text-sm opacity-85 md:text-base">Kaspi Магазин ашуды және басқаруды қадам-қадаммен үйреніңіз.{s.settings.instructor && ` Жетекші: ${s.settings.instructor}`}</p>
         <div className="mt-6 max-w-md">
           <div className="mb-2 flex justify-between text-sm"><span>Курс прогресі</span><span className="font-bold">{p.percent}%</span></div>
           <Progress value={p.percent} className="h-2.5 bg-primary-foreground/20 [&>div]:bg-gold" />

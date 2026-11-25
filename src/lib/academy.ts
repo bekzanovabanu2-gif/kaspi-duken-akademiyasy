@@ -41,7 +41,7 @@ export function createDefaultState(): AcademyState {
     announcements: [{ id: "sample-ann", title: "Үлгі хабарландыру", body: "Оқушыларға арналған жаңалықтарды осында жариялаңыз. Бұл үлгіні өңдеуге не жоюға болады.", date: new Date(0).toISOString(), published: true, sample: true }],
     progress: { lessons: {}, quizzes: {} },
     activity: [],
-    settings: { courseTitle: "Kaspi Academy — Banu", instructor: "Бану", accent: "burgundy" },
+    settings: { courseTitle: "Kaspi Дүкен Академиясы", instructor: "", accent: "burgundy" },
   };
 }
 
@@ -55,6 +55,7 @@ function load(): AcademyState {
   try {
     const raw = localStorage.getItem(KEY);
     state = raw ? { ...createDefaultState(), ...(JSON.parse(raw) as AcademyState) } : createDefaultState();
+    if (/banu|бану/i.test(state.settings.courseTitle) || /banu|бану/i.test(state.settings.instructor)) state = { ...state, settings: { ...state.settings, courseTitle: "Kaspi Дүкен Академиясы", instructor: "" } };
   } catch { state = createDefaultState(); }
   return state;
 }

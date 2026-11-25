@@ -7,9 +7,9 @@ import { useAcademy, visibleModules, visibleLessons } from "@/lib/academy";
 
 export const Route = createFileRoute("/modules")({
   head: () => ({ meta: [
-    { title: "Модульдер — Kaspi Academy — Banu" },
+    { title: "Модульдер — Kaspi Дүкен Академиясы" },
     { name: "description", content: "Курс модульдері және әр модульдегі прогресс." },
-    { property: "og:title", content: "Модульдер — Kaspi Academy" },
+    { property: "og:title", content: "Модульдер — Kaspi Академия" },
     { property: "og:description", content: "Курс модульдері және прогресс." },
     { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
   ] }),

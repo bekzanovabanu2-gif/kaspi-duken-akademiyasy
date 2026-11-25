@@ -12,9 +12,9 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [
-    { title: "Баптаулар — Kaspi Academy — Banu" },
+    { title: "Баптаулар — Kaspi Дүкен Академиясы" },
     { name: "description", content: "Курс атауы, жетекші аты және түс тақырыбы баптаулары." },
-    { property: "og:title", content: "Баптаулар — Kaspi Academy" },
+    { property: "og:title", content: "Баптаулар — Kaspi Академия" },
     { property: "og:description", content: "Курс баптаулары." },
     { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
   ] }),

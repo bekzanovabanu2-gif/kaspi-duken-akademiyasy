@@ -9,9 +9,9 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/lessons/")({
   head: () => ({ meta: [
-    { title: "Сабақтар — Kaspi Academy — Banu" },
+    { title: "Сабақтар — Kaspi Дүкен Академиясы" },
     { name: "description", content: "Kaspi Магазин бойынша барлық сабақтар: іздеу және сүзгілер." },
-    { property: "og:title", content: "Сабақтар — Kaspi Academy" },
+    { property: "og:title", content: "Сабақтар — Kaspi Академия" },
     { property: "og:description", content: "Kaspi Магазин бойынша барлық сабақтар." },
     { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
   ] }),

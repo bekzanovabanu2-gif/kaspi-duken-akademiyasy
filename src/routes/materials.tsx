@@ -9,9 +9,9 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/materials")({
   head: () => ({ meta: [
-    { title: "Материалдар — Kaspi Academy — Banu" },
+    { title: "Материалдар — Kaspi Дүкен Академиясы" },
     { name: "description", content: "Пайдалы файлдар, шаблондар мен сілтемелер кітапханасы." },
-    { property: "og:title", content: "Материалдар — Kaspi Academy" },
+    { property: "og:title", content: "Материалдар — Kaspi Академия" },
     { property: "og:description", content: "Файлдар мен сілтемелер кітапханасы." },
     { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
   ] }),

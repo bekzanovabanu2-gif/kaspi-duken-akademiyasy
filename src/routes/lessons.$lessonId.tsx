@@ -9,9 +9,9 @@ import { setLessonStatus, useAcademy, visibleLessons } from "@/lib/academy";
 
 export const Route = createFileRoute("/lessons/$lessonId")({
   head: () => ({ meta: [
-    { title: "Сабақ — Kaspi Academy — Banu" },
+    { title: "Сабақ — Kaspi Дүкен Академиясы" },
     { name: "description", content: "Kaspi Магазин курсының сабағы." },
-    { property: "og:title", content: "Сабақ — Kaspi Academy" },
+    { property: "og:title", content: "Сабақ — Kaspi Академия" },
     { property: "og:description", content: "Kaspi Магазин курсының сабағы." },
     { property: "og:type", content: "article" }, { name: "twitter:card", content: "summary" },
   ] }),

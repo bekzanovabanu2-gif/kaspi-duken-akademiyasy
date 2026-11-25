@@ -83,9 +83,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Kaspi Academy — Banu" },
+      { title: "Kaspi Дүкен Академиясы" },
       { name: "description", content: "Kaspi Магазин ашу және басқаруды үйрететін тәуелсіз оқу порталы." },
-      { property: "og:title", content: "Kaspi Academy — Banu" },
+      { property: "og:title", content: "Kaspi Дүкен Академиясы" },
       { property: "og:description", content: "Kaspi Магазин ашу және басқаруды үйрететін тәуелсіз оқу порталы." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

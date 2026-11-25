@@ -11,7 +11,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ConfirmDelete, EmptyState, PageHeader, SampleBadge } from "./ui";
 import { ContentPreview } from "./ContentPreview";
 import { EntityFields, Field } from "./EntityFields";
-import { setState, useAcademy } from "@/lib/academy";
+import { setState, useAcademy, type AcademyState } from "@/lib/academy";
+import { clearLegacy, hydrateFromCloud, legacyContent, pushContent, useAdmin } from "@/lib/cloud-content";
+import { supabase } from "@/integrations/supabase/client";
+import { Link } from "@tanstack/react-router";
+import { CloudUpload, LogIn, LogOut, ShieldCheck } from "lucide-react";
 import { deleteEntity, newDraft, reorderEntity, saveDraft, STORAGE_FAILURE, validateDraft, type Draft, type EntityKind } from "@/lib/academy-editor";
 
 const sections = [
@@ -28,7 +32,25 @@ function publish(draft: Draft, published: boolean): Draft {
 }
 
 export function ContentEditor() {
+  const auth = useAdmin();
+  if (auth.loading) return <p className="py-16 text-center text-sm text-muted-foreground">Тексерілуде…</p>;
+  if (!auth.admin) return <div className="mx-auto max-w-md py-10"><EmptyState icon={ShieldCheck} title={auth.email ? "Әкімші рұқсаты жоқ" : "Әкімші ретінде кіріңіз"}
+    text={auth.email ? `${auth.email} аккаунтында контентті басқару рұқсаты жоқ.` : "Сабақтар мен бейнелерді тек әкімші қоса алады."}
+    action={auth.email ? <Button variant="outline" onClick={() => void supabase.auth.signOut()}><LogOut />Шығу</Button> : <Button asChild><Link to="/auth"><LogIn />Кіру</Link></Button>} /></div>;
+  return <AdminEditor email={auth.email} />;
+}
+
+function AdminEditor({ email }: { email: string | null }) {
   const state = useAcademy();
+  const [legacy, setLegacy] = useState(() => legacyContent());
+  const migrate = async () => {
+    const ids = new Set(state.lessons.map((l) => l.id)); const mids = new Set(state.modules.map((m) => m.id));
+    const next = { modules: [...state.modules, ...legacy.modules.filter((m) => !mids.has(m.id))], lessons: [...state.lessons, ...legacy.lessons.filter((l) => !ids.has(l.id))] };
+    const err = await pushContent(next);
+    if (err) { toast.error("Көшіру сәтсіз: " + err); return; }
+    clearLegacy(); setLegacy({ modules: [], lessons: [] }); await hydrateFromCloud();
+    toast.success("Браузердегі сабақтар бұлтқа көшірілді");
+  };
   const [kind, setKind] = useState<EntityKind>("modules");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [baseline, setBaseline] = useState("");
@@ -60,10 +82,19 @@ export function ContentEditor() {
     return !problem;
   };
   const persist = (updater: Parameters<typeof setState>[0], message: string) => {
+    let next: AcademyState | null = null;
     try {
-      if (!setState(updater)) { toast.error(STORAGE_FAILURE); return false; }
-      toast.success(message); return true;
+      if (!setState((s) => { next = updater(s); return next; })) { toast.error(STORAGE_FAILURE); return false; }
     } catch { toast.error(STORAGE_FAILURE); return false; }
+    const n = next as AcademyState | null;
+    if (n && (n.modules !== state.modules || n.lessons !== state.lessons)) {
+      const id = toast.loading("Бұлтқа сақталуда…");
+      void pushContent(n).then((err) => {
+        if (err) toast.error("Бұлтқа сақталмады — оқушылар әзірге көрмейді. Қайта сақтап көріңіз.", { id });
+        else toast.success(message + " · барлық оқушыларға қолжетімді", { id });
+      });
+    } else toast.success(message);
+    return true;
   };
   const save = () => {
     if (!draft || busy || !validate(draft)) return;
@@ -75,6 +106,9 @@ export function ContentEditor() {
 
   return <div className="min-w-0">
     <PageHeader title="Контентті басқару" subtitle="Модульдер, сабақтар, материалдар, тесттер және хабарландырулар." />
+    <div className="mb-5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="size-4 text-success" />Әкімші: {email}<Button variant="ghost" size="sm" onClick={() => void supabase.auth.signOut()}><LogOut />Шығу</Button></div>
+    <p className="mb-5 rounded-md border bg-muted/50 p-3 text-xs text-muted-foreground">Модульдер мен сабақтар (бейнелерімен) бұлтта сақталады және барлық оқушыларға көрінеді. Материалдар, тесттер мен хабарландырулар әзірге осы браузерде ғана сақталады.</p>
+    {(legacy.modules.length > 0 || legacy.lessons.length > 0) && <div className="mb-5 flex flex-wrap items-center gap-3 rounded-md border border-gold/50 bg-gold-soft p-3 text-sm"><span className="flex-1">Бұл браузерде бұрын қосылған {legacy.modules.length} модуль және {legacy.lessons.length} сабақ бар.</span><Button size="sm" onClick={() => void migrate()}><CloudUpload />Бұлтқа көшіру</Button></div>}
     <Tabs value={kind} onValueChange={(value) => { const section = sections.find((s) => s.kind === value); if (section) setKind(section.kind); }}>
       <div className="mb-6 overflow-x-auto border-b pb-3"><TabsList className="h-auto w-max justify-start gap-1 bg-muted p-1">{sections.map((s) => <TabsTrigger key={s.kind} value={s.kind} className="gap-2 px-3 py-2"><s.icon className="size-4" />{s.label}<span className="text-xs text-muted-foreground">{state[s.kind].length}</span></TabsTrigger>)}</TabsList></div>
       {sections.map((s) => {
@@ -123,7 +157,7 @@ export function ContentEditor() {
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t bg-background px-5 py-4">
             <Button type="button" variant="ghost" disabled={busy} onClick={close}>Бас тарту</Button>
             <Button type="button" variant="outline" disabled={busy} onClick={() => { if (preview) setPreview(false); else if (validate(draft)) setPreview(true); }}>{preview ? <Pencil /> : <Eye />}{preview ? "Өңдеу" : "Алдын ала қарау"}</Button>
-            <Button type="submit" disabled={busy}><Save />{busy ? "Файл оқылуда…" : draft.value.published ? "Жариялау және сақтау" : "Сақтау"}</Button>
+            <Button type="submit" disabled={busy}><Save />{busy ? "Файл жүктелуде…" : draft.value.published ? "Жариялау және сақтау" : "Сақтау"}</Button>
           </div>
         </form>}
       </DialogContent>

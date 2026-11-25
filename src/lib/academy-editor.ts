@@ -34,7 +34,7 @@ export function validateDraft(draft: Draft, state: AcademyState): string | null 
     if (!l.moduleId || !state.modules.some((m) => m.id === l.moduleId)) return "Сабақ үшін модульді таңдаңыз.";
     if (!Number.isInteger(l.duration) || l.duration < 1) return "Ұзақтығы кемінде 1 минут болуы керек.";
     if ((l.cover.trim() && !isHttpUrl(l.cover.trim())) || (l.videoUrl.trim() && !isHttpUrl(l.videoUrl.trim()))) return "Сурет пен бейне сілтемелері http:// немесе https:// арқылы басталуы керек.";
-    if (l.resources.some((r) => !r.title.trim() || !isHttpUrl(r.url.trim()))) return "Әр ресурсқа атау және жарамды сілтеме енгізіңіз.";
+    if (l.resources.some((r) => !r.title.trim() || (!r.path && !isHttpUrl(r.url.trim())))) return "Әр ресурсқа атау және жарамды сілтеме енгізіңіз.";
   }
   if (draft.kind === "materials") {
     const m = draft.value;

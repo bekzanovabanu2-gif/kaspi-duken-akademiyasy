@@ -4,10 +4,10 @@ export type LessonStatus = "not_started" | "in_progress" | "done";
 export type Accent = "burgundy" | "plum" | "rose" | "emerald";
 
 export interface Module { id: string; title: string; description: string; published?: boolean; sample?: boolean }
-export interface Resource { id: string; title: string; url: string }
+export interface Resource { id: string; title: string; url: string; path?: string }
 export interface Lesson {
   id: string; moduleId: string | null; title: string; description: string; category: string;
-  duration: number; cover: string; videoUrl: string; content: string; resources: Resource[];
+  duration: number; cover: string; videoUrl: string; videoPath?: string; videoName?: string; content: string; resources: Resource[];
   published: boolean; sample?: boolean;
 }
 export interface Material { id: string; title: string; description: string; category: string; url: string; fileName?: string; fileData?: string; published?: boolean; sample?: boolean }

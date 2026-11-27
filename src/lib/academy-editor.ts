@@ -38,7 +38,7 @@ export function validateDraft(draft: Draft, state: AcademyState): string | null 
   }
   if (draft.kind === "materials") {
     const m = draft.value;
-    if (!m.fileData && !isHttpUrl(m.url.trim())) return "Материалға жарамды сілтеме немесе файл қосыңыз.";
+    if (!m.filePath && !m.fileData && !isHttpUrl(m.url.trim())) return "Материалға жарамды сілтеме немесе файл қосыңыз.";
     if (m.url.trim() && !isHttpUrl(m.url.trim())) return "Жарамды http:// немесе https:// сілтемесін енгізіңіз.";
   }
   if (draft.kind === "quizzes") {

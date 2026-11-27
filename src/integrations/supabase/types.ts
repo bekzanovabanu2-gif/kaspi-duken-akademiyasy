@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      academy_announcements: {
+        Row: {
+          data: Json
+          id: string
+          position: number
+          published: boolean
+          title: string
+        }
+        Insert: {
+          data?: Json
+          id: string
+          position?: number
+          published?: boolean
+          title: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+          position?: number
+          published?: boolean
+          title?: string
+        }
+        Relationships: []
+      }
+      academy_content_revision: {
+        Row: {
+          id: number
+          version: number
+        }
+        Insert: {
+          id?: number
+          version?: number
+        }
+        Update: {
+          id?: number
+          version?: number
+        }
+        Relationships: []
+      }
       academy_lessons: {
         Row: {
           category: string
@@ -68,6 +107,30 @@ export type Database = {
         }
         Relationships: []
       }
+      academy_materials: {
+        Row: {
+          data: Json
+          id: string
+          position: number
+          published: boolean
+          title: string
+        }
+        Insert: {
+          data?: Json
+          id: string
+          position?: number
+          published?: boolean
+          title: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+          position?: number
+          published?: boolean
+          title?: string
+        }
+        Relationships: []
+      }
       academy_modules: {
         Row: {
           description: string
@@ -95,6 +158,30 @@ export type Database = {
         }
         Relationships: []
       }
+      academy_quizzes: {
+        Row: {
+          data: Json
+          id: string
+          position: number
+          published: boolean
+          title: string
+        }
+        Insert: {
+          data?: Json
+          id: string
+          position?: number
+          published?: boolean
+          title: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+          position?: number
+          published?: boolean
+          title?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -118,6 +205,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_academy_content: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -126,6 +214,10 @@ export type Database = {
         Returns: boolean
       }
       is_published_lesson_media: { Args: { _name: string }; Returns: boolean }
+      save_academy_content: {
+        Args: { _content: Json; _version: number }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "admin" | "user"

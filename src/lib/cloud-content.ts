@@ -1,12 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { setState, type AcademyState, type Lesson, type Module, type Resource } from "./academy";
+import { applyCloudContent, getAcademyState, type Lesson, type Module, type Resource } from "./academy";
+import { CONTENT_KINDS, emptyContent, mediaPaths, mergeLegacyContent, type SharedContent } from "./content-transfer";
+import type { Json } from "@/integrations/supabase/types";
 
 export const MEDIA_BUCKET = "lesson-media";
 export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
-export const MAX_RESOURCE_BYTES = 50 * 1024 * 1024;
+export const MAX_RESOURCE_BYTES = MAX_VIDEO_BYTES;
 export const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
 const LEGACY_KEY = "kaspi-academy:legacy-content";
+const BACKUP_KEY = "kaspi-academy:legacy-content-v2";
+const ARCHIVE_KEY = "kaspi-academy:imported-backup";
+let version: number | null = null;
+let hydrated = false;
+let requestSequence = 0;
+let saving = false;
 
 export function videoProblem(file: { name: string; type: string; size: number }): string | null {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -15,55 +23,78 @@ export function videoProblem(file: { name: string; type: string; size: number })
   if (file.size === 0) return "Файл бос.";
   return null;
 }
+export function mediaContentType(file: { name: string; type: string }, folder: "videos" | "files") {
+  if (folder === "videos") {
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    return ext === "mov" ? "video/quicktime" : ext === "webm" ? "video/webm" : ext === "mp4" ? "video/mp4" : file.type;
+  }
+  return file.type || "application/octet-stream";
+}
 
-type ModuleRow = { id: string; title: string; description: string; published: boolean; position: number };
-type LessonRow = { id: string; module_id: string | null; title: string; description: string; category: string; duration: number; cover: string; video_url: string; video_path: string | null; video_name: string | null; content: string; resources: unknown; published: boolean; position: number };
-
+type ModuleRow = { id: string; title: string; description: string; published: boolean };
+type LessonRow = { id: string; module_id: string | null; title: string; description: string; category: string; duration: number; cover: string; video_url: string; video_path: string | null; video_name: string | null; content: string; resources: unknown; published: boolean };
 const toModule = (r: ModuleRow): Module => ({ id: r.id, title: r.title, description: r.description, published: r.published });
-const toLesson = (r: LessonRow): Lesson => {
-  const l: Lesson = { id: r.id, moduleId: r.module_id, title: r.title, description: r.description, category: r.category, duration: r.duration, cover: r.cover, videoUrl: r.video_url, content: r.content, resources: Array.isArray(r.resources) ? (r.resources as Resource[]) : [], published: r.published };
-  if (r.video_path) { l.videoPath = r.video_path; l.videoName = r.video_name ?? "Бейне"; }
-  return l;
-};
+const toLesson = (r: LessonRow): Lesson => ({ id: r.id, moduleId: r.module_id, title: r.title, description: r.description, category: r.category, duration: r.duration, cover: r.cover, videoUrl: r.video_url, content: r.content, resources: Array.isArray(r.resources) ? r.resources as Resource[] : [], published: r.published, ...(r.video_path ? { videoPath: r.video_path, videoName: r.video_name ?? "Бейне" } : {}) });
 
-/** Loads shared modules/lessons from the cloud and makes them the source of truth. */
+function readBackup(raw: string | null): SharedContent {
+  if (!raw) return emptyContent();
+  const value = JSON.parse(raw) as Partial<SharedContent>;
+  const result = emptyContent();
+  for (const kind of CONTENT_KINDS) {
+    if (value[kind] !== undefined && !Array.isArray(value[kind])) throw new Error("INVALID_BACKUP");
+    (result[kind] as unknown[]) = value[kind] ?? [];
+  }
+  return result;
+}
+function captureLegacy() {
+  if (localStorage.getItem(BACKUP_KEY) !== null) return;
+  const own = emptyContent(); const current = getAcademyState();
+  for (const kind of CONTENT_KINDS) (own[kind] as unknown[]) = current[kind].filter((x) => !("sample" in x && x.sample));
+  const old = readBackup(localStorage.getItem(LEGACY_KEY));
+  localStorage.setItem(BACKUP_KEY, JSON.stringify(mergeLegacyContent(own, old)));
+}
+export function legacyContent(): SharedContent { return readBackup(localStorage.getItem(BACKUP_KEY)); }
+export function clearLegacy() {
+  const backup = localStorage.getItem(BACKUP_KEY);
+  if (backup) localStorage.setItem(ARCHIVE_KEY, backup);
+  localStorage.setItem(BACKUP_KEY, JSON.stringify(emptyContent()));
+  // Keep the old key intact as an additional recovery copy.
+}
+
+/** A single database statement reads a consistent, RLS-filtered snapshot. Back up before replacing browser data. */
 export async function hydrateFromCloud(): Promise<boolean> {
-  const [m, l] = await Promise.all([
-    supabase.from("academy_modules").select("*").order("position"),
-    supabase.from("academy_lessons").select("*").order("position"),
-  ]);
-  if (m.error || l.error) return false;
-  setState((s) => {
-    if (typeof localStorage !== "undefined" && !localStorage.getItem(LEGACY_KEY)) {
-      const own = { modules: s.modules.filter((x) => !x.sample), lessons: s.lessons.filter((x) => !x.sample) };
-      try { localStorage.setItem(LEGACY_KEY, JSON.stringify(own)); } catch { /* ignore */ }
-    }
-    return { ...s, modules: (m.data as ModuleRow[]).map(toModule), lessons: (l.data as LessonRow[]).map(toLesson) };
-  });
-  return true;
+  const sequence = ++requestSequence;
+  try {
+    captureLegacy();
+    const { data, error } = await supabase.rpc("get_academy_content");
+    if (error || !data || sequence !== requestSequence || saving) return false;
+    const snapshot = data as unknown as SharedContent & { version: number; modules: ModuleRow[]; lessons: LessonRow[] };
+    const content: SharedContent = { modules: snapshot.modules.map(toModule), lessons: snapshot.lessons.map(toLesson), materials: snapshot.materials, quizzes: snapshot.quizzes, announcements: snapshot.announcements };
+    version = snapshot.version; hydrated = true;
+    applyCloudContent(content);
+    return true;
+  } catch { return false; }
 }
 
-export function legacyContent(): { modules: Module[]; lessons: Lesson[] } {
-  try { const raw = localStorage.getItem(LEGACY_KEY); if (raw) return JSON.parse(raw); } catch { /* ignore */ }
-  return { modules: [], lessons: [] };
-}
-export function clearLegacy() { try { localStorage.setItem(LEGACY_KEY, JSON.stringify({ modules: [], lessons: [] })); } catch { /* ignore */ } }
-
-/** Mirrors local modules/lessons (including order) to the cloud; removes deleted rows. */
-export async function pushContent(s: Pick<AcademyState, "modules" | "lessons">): Promise<string | null> {
-  const modules = s.modules.map((m, i) => ({ id: m.id, title: m.title, description: m.description, published: m.published !== false, position: i, updated_at: new Date().toISOString() }));
-  const lessons = s.lessons.map((l, i) => ({ id: l.id, module_id: l.moduleId, title: l.title, description: l.description, category: l.category, duration: l.duration, cover: l.cover, video_url: l.videoUrl, video_path: l.videoPath ?? null, video_name: l.videoName ?? null, content: l.content, resources: l.resources, published: l.published, position: i, updated_at: new Date().toISOString() }));
-  if (modules.length) { const { error } = await supabase.from("academy_modules").upsert(modules); if (error) return error.message; }
-  if (lessons.length) { const { error } = await supabase.from("academy_lessons").upsert(lessons as never); if (error) return error.message; }
-  const keepM = modules.map((m) => m.id); const keepL = lessons.map((l) => l.id);
-  const dm = keepM.length ? supabase.from("academy_modules").delete().not("id", "in", `(${keepM.map((x) => `"${x}"`).join(",")})`) : supabase.from("academy_modules").delete().neq("id", "");
-  const dl = keepL.length ? supabase.from("academy_lessons").delete().not("id", "in", `(${keepL.map((x) => `"${x}"`).join(",")})`) : supabase.from("academy_lessons").delete().neq("id", "");
-  const [a, b] = await Promise.all([dm, dl]);
-  return a.error?.message ?? b.error?.message ?? null;
+/** Atomic, version-checked cloud save. No cache update or success until the transaction commits. */
+export async function pushContent(content: SharedContent): Promise<string | null> {
+  if (!hydrated || version === null) return "Контент жүктелмеді. Бетті жаңартып, қайта көріңіз.";
+  if (saving) return "Алдыңғы сақтау аяқталғанша күтіңіз.";
+  saving = true; ++requestSequence;
+  try {
+    const { data, error } = await supabase.rpc("save_academy_content", { _content: content as unknown as Json, _version: version });
+    if (error) return error.message.includes("CONTENT_CONFLICT") ? "Контент басқа құрылғыда өзгертілді. Өзгерістеріңіз редакторда қалды. Бетті жаңартып, соңғы нұсқамен қайта сақтаңыз." : "Бұлтқа сақталмады. Интернетті және әкімші рұқсатын тексеріп, қайта сақтаңыз. Өзгерістер редакторда қалды.";
+    version = data;
+    applyCloudContent(content);
+    return null;
+  } catch { return "Желі үзілді. Өзгерістер редакторда қалды; қайта сақтап көріңіз."; }
+  finally { saving = false; }
 }
 
-/** Uploads a file to cloud storage with progress. Returns the storage path. */
 export async function uploadMedia(file: File, folder: "videos" | "files", onProgress: (pct: number) => void, signal?: AbortSignal): Promise<string> {
+  const problem = folder === "videos" ? videoProblem(file) : file.size === 0 ? "Файл бос." : file.size > MAX_RESOURCE_BYTES ? "Файл көлемі 50 МБ-тан аспауы керек." : null;
+  if (problem) throw new Error(problem);
+  if (signal?.aborted) throw new Error("Жүктеу тоқтатылды.");
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error("Жүктеу үшін қайта кіріңіз.");
@@ -72,62 +103,77 @@ export async function uploadMedia(file: File, folder: "videos" | "files", onProg
   const url = `${import.meta.env['VITE_SUPABASE_URL']}/storage/v1/object/${MEDIA_BUCKET}/${path}`;
   await new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", url);
+    const abort = () => xhr.abort();
+    const cleanup = () => signal?.removeEventListener("abort", abort);
+    xhr.open("POST", url); xhr.timeout = 15 * 60 * 1000;
     xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     xhr.setRequestHeader("apikey", import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY']);
     xhr.setRequestHeader("x-upsert", "false");
-    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
-    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100)); };
+    xhr.setRequestHeader("Content-Type", mediaContentType(file, folder));
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(Math.min(99, Math.round(e.loaded / e.total * 100))); };
     xhr.onload = () => {
+      cleanup();
       if (xhr.status >= 200 && xhr.status < 300) return resolve();
       if (xhr.status === 413) return reject(new Error("Файл тым үлкен (ең көбі 50 МБ)."));
       if (xhr.status === 401 || xhr.status === 403) return reject(new Error("Жүктеуге рұқсат жоқ. Әкімші ретінде кіріңіз."));
+      if (xhr.status === 400 || xhr.status === 415) return reject(new Error("Файл пішімі қабылданбады. MP4, MOV, WEBM немесе қолдау көрсетілетін құжатты таңдаңыз."));
       reject(new Error("Жүктеу сәтсіз аяқталды. Қайталап көріңіз."));
     };
-    xhr.onerror = () => reject(new Error("Желі қатесі. Интернетті тексеріп, қайталаңыз."));
-    xhr.onabort = () => reject(new Error("Жүктеу тоқтатылды."));
-    signal?.addEventListener("abort", () => xhr.abort());
+    xhr.onerror = () => { cleanup(); reject(new Error("Желі қатесі. Интернетті тексеріп, файлды қайта таңдаңыз.")); };
+    xhr.ontimeout = () => { cleanup(); reject(new Error("Жүктеу уақыты аяқталды. Файлды қайта таңдаңыз.")); };
+    xhr.onabort = () => { cleanup(); reject(new Error("Жүктеу тоқтатылды. Файл сақталмады.")); };
+    signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) { cleanup(); reject(new Error("Жүктеу тоқтатылды.")); return; }
     xhr.send(file);
   });
-  onProgress(100);
-  return path;
+  onProgress(100); return path;
 }
-
-export async function deleteMedia(path: string) { await supabase.storage.from(MEDIA_BUCKET).remove([path]); }
-
+export async function deleteMedia(path: string) {
+  const { error } = await supabase.storage.from(MEDIA_BUCKET).remove([path]);
+  if (error) throw new Error("Файлды қоймадан жою мүмкін болмады.");
+}
+export async function cleanupRemovedMedia(before: SharedContent, after: SharedContent) {
+  const retained = mediaPaths(after);
+  await Promise.all([...mediaPaths(before)].filter((p) => !retained.has(p)).map(deleteMedia));
+}
 export function useMediaUrl(path: string | undefined) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [result, setResult] = useState<{ path: string | undefined; url: string | null; failed: boolean }>({ path: undefined, url: null, failed: false });
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    if (!path) { setUrl(null); return; }
-    let live = true; setFailed(false);
-    supabase.storage.from(MEDIA_BUCKET).createSignedUrl(path, 60 * 60 * 6).then(({ data, error }) => {
-      if (!live) return; if (error || !data) setFailed(true); else setUrl(data.signedUrl);
-    });
-    return () => { live = false; };
-  }, [path]);
-  return { url, failed };
-}
-
-export async function openMedia(path: string) {
-  const { data } = await supabase.storage.from(MEDIA_BUCKET).createSignedUrl(path, 60 * 10);
-  if (data) window.open(data.signedUrl, "_blank", "noopener");
-}
-
-export function useAdmin() {
-  const [status, setStatus] = useState<{ loading: boolean; email: string | null; admin: boolean }>({ loading: true, email: null, admin: false });
-  useEffect(() => {
+    if (!path) return;
     let live = true;
-    const check = async () => {
-      const { data } = await supabase.auth.getUser();
-      const user = data.user;
-      if (!user) { if (live) setStatus({ loading: false, email: null, admin: false }); return; }
-      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
-      if (live) setStatus({ loading: false, email: user.email ?? null, admin: !!isAdmin });
+    const load = async () => {
+      setResult({ path, url: null, failed: false });
+      try {
+        const { data, error } = await supabase.storage.from(MEDIA_BUCKET).createSignedUrl(path, 60 * 60);
+        if (live) setResult({ path, url: data?.signedUrl ?? null, failed: !!error || !data });
+      } catch { if (live) setResult({ path, url: null, failed: true }); }
     };
-    void check();
-    const { data: sub } = supabase.auth.onAuthStateChange((e) => { if (e === "SIGNED_IN" || e === "SIGNED_OUT") void check(); });
-    return () => { live = false; sub.subscription.unsubscribe(); };
-  }, []);
-  return status;
+    void load();
+    const timer = window.setInterval(() => void load(), 50 * 60 * 1000);
+    return () => { live = false; window.clearInterval(timer); };
+  }, [path, attempt]);
+  return { url: result.path === path ? result.url : null, failed: result.path === path && result.failed, retry: () => setAttempt((n) => n + 1) };
+}
+export async function openMedia(path: string) {
+  const { data, error } = await supabase.storage.from(MEDIA_BUCKET).createSignedUrl(path, 60 * 10);
+  if (error || !data) throw new Error("Файл табылмады немесе қолжетімсіз.");
+  window.open(data.signedUrl, "_blank", "noopener");
+}
+
+type AdminStatus = { loading: boolean; email: string | null; admin: boolean };
+let adminStatus: AdminStatus = { loading: true, email: null, admin: false };
+const adminListeners = new Set<() => void>();
+const serverAdminStatus: AdminStatus = { loading: true, email: null, admin: false };
+export async function refreshAdmin() {
+  adminStatus = { loading: true, email: null, admin: false }; adminListeners.forEach((l) => l());
+  try {
+    const { data } = await supabase.auth.getUser(); const user = data.user;
+    const role = user ? await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }) : null;
+    adminStatus = { loading: false, email: user?.email ?? null, admin: role?.data === true };
+  } catch { adminStatus = { loading: false, email: null, admin: false }; }
+  adminListeners.forEach((l) => l());
+}
+export function useAdmin() {
+  return useSyncExternalStore((cb) => { adminListeners.add(cb); return () => { adminListeners.delete(cb); }; }, () => adminStatus, () => serverAdminStatus);
 }

@@ -10,7 +10,7 @@ export interface Lesson {
   duration: number; cover: string; videoUrl: string; videoPath?: string; videoName?: string; content: string; resources: Resource[];
   published: boolean; sample?: boolean;
 }
-export interface Material { id: string; title: string; description: string; category: string; url: string; fileName?: string; fileData?: string; published?: boolean; sample?: boolean }
+export interface Material { id: string; title: string; description: string; category: string; url: string; fileName?: string; fileData?: string; filePath?: string; published?: boolean; sample?: boolean }
 export interface Question { id: string; text: string; options: string[]; correct: number; explanation: string }
 export interface Quiz { id: string; title: string; description: string; questions: Question[]; published: boolean }
 export interface Announcement { id: string; title: string; body: string; date: string; published: boolean; sample?: boolean }
@@ -69,6 +69,18 @@ export function setState(updater: (s: AcademyState) => AcademyState): boolean {
 }
 
 export function resetState() { return setState(() => createDefaultState()); }
+
+/** Cloud is authoritative; a full browser cache must not undo a successful cloud save. */
+export function applyCloudContent(content: Pick<AcademyState, "modules" | "lessons" | "materials" | "quizzes" | "announcements">) {
+  const next = { ...load(), ...content };
+  let cached = true;
+  try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { cached = false; }
+  state = next;
+  listeners.forEach((l) => l());
+  return cached;
+}
+
+export function getAcademyState() { return load(); }
 
 export function useAcademy(): AcademyState {
   return useSyncExternalStore(

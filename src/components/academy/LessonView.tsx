@@ -1,6 +1,22 @@
-import { Clock, Download, ExternalLink, PlayCircle } from "lucide-react";
+import { Clock, Download, ExternalLink, PlayCircle, RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useMediaUrl } from "@/lib/cloud-content";
+import { StoredMediaLink } from "./StoredMediaLink";
 import { RichText, SampleBadge } from "./ui";
 import { toEmbedUrl, type Lesson } from "@/lib/academy";
+
+function StoredVideo({ path, title }: { path: string; title: string }) {
+  const { url, failed, retry } = useMediaUrl(path);
+  const [playbackError, setPlaybackError] = useState(false);
+  return <div className="space-y-2">
+    {failed || playbackError ? <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+      <p>{failed ? "Бейне файлы табылмады немесе оған қолжетімділік жоқ." : "Бейне ойнатылмады. Интернетті тексеріңіз; бұл құрылғы бейне кодегін қолдамауы мүмкін."}</p>
+      <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => { setPlaybackError(false); retry(); }}><RefreshCw />Қайта жүктеу</Button>
+      {url && <a href={url} target="_blank" rel="noreferrer" className="ml-3 underline">Бейнені ашу</a>}
+    </div> : url ? <video key={url} src={url} controls playsInline preload="metadata" aria-label={title} className="aspect-video w-full rounded-2xl border bg-muted" onError={() => setPlaybackError(true)} /> : <div className="grid aspect-video place-items-center rounded-2xl border bg-muted text-sm text-muted-foreground" role="status">Бейне жүктелуде…</div>}
+  </div>;
+}
 
 export function LessonView({ lesson, moduleTitle }: { lesson: Lesson; moduleTitle?: string | undefined }) {
   const embed = lesson.videoUrl ? toEmbedUrl(lesson.videoUrl) : null;
@@ -17,6 +33,7 @@ export function LessonView({ lesson, moduleTitle }: { lesson: Lesson; moduleTitl
         <h1 className="text-3xl font-semibold md:text-4xl">{lesson.title || "Атауы жоқ сабақ"}</h1>
         {lesson.description && <p className="mt-2 text-muted-foreground">{lesson.description}</p>}
       </div>
+      {lesson.videoPath && <StoredVideo key={lesson.videoPath} path={lesson.videoPath} title={lesson.title} />}
       {lesson.videoUrl && (embed ? (
         <div className="aspect-video overflow-hidden rounded-2xl border bg-muted"><iframe src={embed} title={lesson.title} className="size-full" allowFullScreen allow="accelerometer; encrypted-media; picture-in-picture" /></div>
       ) : (
@@ -28,7 +45,7 @@ export function LessonView({ lesson, moduleTitle }: { lesson: Lesson; moduleTitl
           <h2 className="mb-3 text-xl font-semibold">Ресурстар</h2>
           <div className="grid gap-2 sm:grid-cols-2">
             {lesson.resources.map((r) => (
-              <a key={r.id} href={r.url} target="_blank" rel="noreferrer" download={r.url.startsWith("data:") ? r.title : undefined} className="card-surface flex items-center gap-3 p-3.5 text-sm font-medium hover:text-primary">
+              r.path ? <StoredMediaLink key={r.id} path={r.path} title={r.title} /> : <a key={r.id} href={r.url} target="_blank" rel="noreferrer" download={r.url.startsWith("data:") ? r.title : undefined} className="card-surface flex items-center gap-3 p-3.5 text-sm font-medium hover:text-primary">
                 <span className="grid size-9 place-items-center rounded-lg bg-gold-soft"><Download className="size-4" /></span><span className="truncate">{r.title}</span>
               </a>
             ))}

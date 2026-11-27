@@ -13,6 +13,7 @@ import { ContentPreview } from "./ContentPreview";
 import { EntityFields, Field } from "./EntityFields";
 import { setState, useAcademy, type AcademyState } from "@/lib/academy";
 import { clearLegacy, hydrateFromCloud, legacyContent, pushContent, useAdmin } from "@/lib/cloud-content";
+import { emptyContent, mergeLegacyContent } from "@/lib/content-transfer";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "@tanstack/react-router";
 import { CloudUpload, LogIn, LogOut, ShieldCheck } from "lucide-react";
@@ -44,11 +45,10 @@ function AdminEditor({ email }: { email: string | null }) {
   const state = useAcademy();
   const [legacy, setLegacy] = useState(() => legacyContent());
   const migrate = async () => {
-    const ids = new Set(state.lessons.map((l) => l.id)); const mids = new Set(state.modules.map((m) => m.id));
-    const next = { modules: [...state.modules, ...legacy.modules.filter((m) => !mids.has(m.id))], lessons: [...state.lessons, ...legacy.lessons.filter((l) => !ids.has(l.id))] };
+    const next = mergeLegacyContent(state, legacy);
     const err = await pushContent(next);
     if (err) { toast.error("Көшіру сәтсіз: " + err); return; }
-    clearLegacy(); setLegacy({ modules: [], lessons: [] }); await hydrateFromCloud();
+    clearLegacy(); setLegacy(emptyContent()); await hydrateFromCloud();
     toast.success("Браузердегі сабақтар бұлтқа көшірілді");
   };
   const [kind, setKind] = useState<EntityKind>("modules");
@@ -147,7 +147,7 @@ function AdminEditor({ email }: { email: string | null }) {
         {draft && <form className="flex min-h-0 flex-1 flex-col" onSubmit={(event) => { event.preventDefault(); save(); }}>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
             {error && <p role="alert" className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
-            {preview ? <ContentPreview draft={draft} state={state} /> : <fieldset disabled={busy} className="min-w-0 space-y-5">
+            {preview ? <ContentPreview draft={draft} state={state} /> : <fieldset className="min-w-0 space-y-5">
               <Field label="Атауы *"><Input required autoFocus value={draft.value.title} onChange={(e) => setDraft({ ...draft, value: { ...draft.value, title: e.target.value } } as Draft)} /></Field>
               <EntityFields draft={draft} state={state} onChange={(next) => { setDraft(next); setError(null); }} onBusy={setBusy} />
               <div className="flex items-center justify-between gap-3 border-t pt-4"><Label htmlFor="publish-content">Жариялау</Label><Switch id="publish-content" checked={draft.value.published !== false} onCheckedChange={(checked) => setDraft(publish(draft, checked))} /></div>

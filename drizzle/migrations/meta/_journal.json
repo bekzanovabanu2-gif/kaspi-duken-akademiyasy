@@ -15,6 +15,13 @@
       "when": 1795635137218,
       "tag": "0001_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795739644610,
+      "tag": "0002_shared_academy_content_atomic_save",
+      "breakpoints": true
     }
   ]
 }

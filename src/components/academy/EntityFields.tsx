@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ConfirmDelete } from "./ui";
 import { uid, type AcademyState } from "@/lib/academy";
 import { MAX_FILE_BYTES, newQuestion, removeChoice, type Draft } from "@/lib/academy-editor";
+import { MediaUpload } from "./MediaUpload";
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className="block min-w-0 space-y-2"><span className="text-sm font-medium">{label}</span>{children}</label>;
@@ -57,15 +58,17 @@ export function EntityFields({ draft, state, onChange, onBusy }: { draft: Draft;
         <Field label="Ұзақтығы (минут) *"><Input type="number" min={1} step={1} required value={Number.isNaN(v.duration) ? "" : v.duration} onChange={(e) => update({ ...v, duration: e.target.valueAsNumber })} /></Field>
       </div>
       <Field label="Мұқаба суретінің URL"><Input type="url" value={v.cover} onChange={(e) => update({ ...v, cover: e.target.value })} /></Field>
-      <Field label="Бейне URL"><Input type="url" value={v.videoUrl} onChange={(e) => update({ ...v, videoUrl: e.target.value })} /></Field>
+      <MediaUpload label="Сабақ бейнесі" folder="videos" fileName={v.videoName} onBusy={onBusy} onUploaded={(path, name) => update({ ...v, videoPath: path, videoName: name })} onRemove={() => { const { videoPath: _path, videoName: _name, ...rest } = v; update(rest); }} />
+      <Field label="YouTube / Vimeo бейне URL"><Input type="url" value={v.videoUrl} onChange={(e) => update({ ...v, videoUrl: e.target.value })} /></Field>
       <FormattedContent value={v.content} onChange={(content) => update({ ...v, content })} />
       <section className="space-y-3 border-t pt-4">
         <div className="flex items-center justify-between"><h3 className="font-semibold">Ресурстар</h3><Button type="button" variant="outline" size="sm" onClick={() => update({ ...v, resources: [...v.resources, { id: uid(), title: "", url: "" }] })}><Plus />Қосу</Button></div>
         {v.resources.map((r, i) => <div key={r.id} className="grid gap-3 border-b pb-4 sm:grid-cols-[1fr_1fr_auto]">
           <Field label={`Ресурс ${i + 1}: атауы *`}><Input required value={r.title} onChange={(e) => update({ ...v, resources: v.resources.map((x) => x.id === r.id ? { ...x, title: e.target.value } : x) })} /></Field>
-          <Field label={`Ресурс ${i + 1}: URL *`}><Input type="url" required value={r.url} onChange={(e) => update({ ...v, resources: v.resources.map((x) => x.id === r.id ? { ...x, url: e.target.value } : x) })} /></Field>
+          {r.path ? <p className="self-end break-all text-sm text-muted-foreground">Файл жүктелген</p> : <Field label={`Ресурс ${i + 1}: URL *`}><Input type="url" required value={r.url} onChange={(e) => update({ ...v, resources: v.resources.map((x) => x.id === r.id ? { ...x, url: e.target.value } : x) })} /></Field>}
           <ConfirmDelete title={r.title || `Ресурс ${i + 1}`} onConfirm={() => update({ ...v, resources: v.resources.filter((x) => x.id !== r.id) })}><Button type="button" size="icon" variant="ghost" className="self-end text-destructive" title="Ресурсты жою" aria-label={`Ресурс ${i + 1}: жою`}><Trash2 /></Button></ConfirmDelete>
         </div>)}
+        <MediaUpload label="Қосымша файл" folder="files" onBusy={onBusy} onUploaded={(path, name) => update({ ...v, resources: [...v.resources, { id: uid(), title: name, path, url: "" }] })} />
       </section>
     </div>;
   }
@@ -91,6 +94,7 @@ export function EntityFields({ draft, state, onChange, onBusy }: { draft: Draft;
       <Field label="Сипаттама"><Textarea rows={3} value={v.description} onChange={(e) => update({ ...v, description: e.target.value })} /></Field>
       <Field label="Санат"><Input value={v.category} onChange={(e) => update({ ...v, category: e.target.value })} /></Field>
       <Field label="Материал URL"><Input type="url" value={v.url} onChange={(e) => update({ ...v, url: e.target.value })} /></Field>
+      <MediaUpload label="Материал файлы" folder="files" fileName={v.fileName} onBusy={onBusy} onUploaded={(path, name) => { const { fileData: _data, ...rest } = v; update({ ...rest, filePath: path, fileName: name }); }} onRemove={() => { const { filePath: _path, fileData: _data, fileName: _name, ...rest } = v; update(rest); }} />
       <div className="space-y-3 border-t pt-4"><h3 className="font-semibold">Файл · ең көбі 1 МБ</h3>
         <input ref={fileInput} type="file" className="hidden" aria-label="Материал файлы" onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ""; }} />
         {v.fileData ? <div className="flex items-center gap-3"><span className="min-w-0 flex-1 break-words text-sm">{v.fileName}</span><ConfirmDelete title={v.fileName ?? "Файл"} onConfirm={() => { const { fileData: _data, fileName: _name, ...rest } = v; update(rest); }}><Button type="button" variant="ghost" size="icon" title="Файлды алып тастау" aria-label="Файлды алып тастау"><X /></Button></ConfirmDelete></div> : null}

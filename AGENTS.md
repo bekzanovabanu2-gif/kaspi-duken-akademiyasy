@@ -32,3 +32,5 @@ use the editor.
 ## Academy editor
 - Keep content editing in academy components with pure validation and mutations in the editor library so browser storage stays atomic and rules remain testable.
 - Treat missing publication flags on legacy modules and materials as published; use shared visibility helpers to hide unpublished modules and their lessons consistently.
+- Shared content uses an RLS-filtered snapshot and version-checked transactional database save; preserve legacy browser backups before hydration to prevent lost content.
+- Stored lesson videos use short-lived signed URLs and the same HTML5 player in learner views and editor previews so private storage remains usable without public buckets.

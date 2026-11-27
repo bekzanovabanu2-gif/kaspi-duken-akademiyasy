@@ -7,12 +7,14 @@
 // the build fails. Never add compression (compressPublicAssets, vite-plugin-compression):
 // hosting already compresses at the edge.
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import {defineConfig} from "@lovable.dev/vite-tanstack-config";
+import {netlify} from "@netlify/vite-plugin-tanstack-start";
 
 export default defineConfig({
+  plugins: [netlify()],
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
-    server: { entry: "server" },
+    server: {entry: "server"},
   },
 });
